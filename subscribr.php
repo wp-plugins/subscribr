@@ -3,7 +3,7 @@
 Plugin Name: Subscribr
 Plugin URI: http://mindsharelabs.com/products/
 Description: Allows WordPress users to subscribe to email notifications for new posts, pages, and custom types, filterable by taxonomies.
-Version: 0.1.1
+Version: 0.1.2
 Author: Mindshare Studios, Inc.
 Author URI: http://mind.sh/are/
 License: GNU General Public License
@@ -36,15 +36,16 @@ Domain Path: /lang
  * @todo      - add option to separate diff taxonomies on profile update
  * @todo      - add widget
  * @todo      - add option to post notifications for update as well as new posts
- * @todo      - add html/plain text options
  * @todo      - add scheduling options / digest mode
  * @todo      - add analytics options
  * @todo      - add minimum role option for notifications
+ * @todo      - add view to see all current subscribers
  * @todo      - add double opt-in
  *
  * Premium features:
  *
  * @todo      - SMS text messages
+ * @todo      - send PDF attachment
  * @todo      - add integration with 3rd-party SMTP servers and/or advanced SMTP settings
  * @todo      - add integration with MailChimp/Mandrill
  * @todo      - add integration with Constant Contact
@@ -61,6 +62,7 @@ Domain Path: /lang
  *
  * Changelog:
  *
+ * 0.1.2 - bugfix for subscribr_profile_title filter,
  * 0.1.1 - Minor updates, fixed date_format, fix for only one notification getting sent
  * 0.1 - Initial release
  *
@@ -115,7 +117,7 @@ if(!class_exists("Subscribr")) :
 		 *
 		 * @var string
 		 */
-		private $version = '0.1.1';
+		private $version = '0.1.2';
 
 		/**
 		 * @var $options - holds all plugin options
@@ -144,8 +146,12 @@ if(!class_exists("Subscribr")) :
 
 			// add meta box
 			if(is_admin()) {
-				add_action('subscribr_post_defaults', array($this, 'add_out_out_meta_box'));
+				add_action('subscribr_post_defaults', array($this, 'add_opt_out_meta_box'));
 			}
+
+			// hooks for email notifications, setup up pretty much the same way that we would in a separate add-on
+			add_action('subscribr_profile_fields', array($this, 'email_profile_fields'));
+			add_action('subscribr_update_user_meta', array($this, 'email_update_user_meta'), 10, 2);
 		}
 
 		/**
@@ -174,7 +180,10 @@ if(!class_exists("Subscribr")) :
 			load_plugin_textdomain('subscribr', FALSE, SUBSCRIBR_PLUGIN_SLUG);
 		}
 
-		public function add_out_out_meta_box() {
+		/**
+		 *
+		 */
+		public function add_opt_out_meta_box() {
 
 			include_once('views/meta-box.php');
 			new opt_out_meta_box($this->options);
@@ -240,13 +249,18 @@ if(!class_exists("Subscribr")) :
 			}
 		}
 
+		/**
+		 * @return mixed|void
+		 */
 		public function do_scripts() {
 			// only enqueue if we're on the register screen, user profile, or Theme_My_Login pages (and the options are enabled)
 			if(($this->is_register() && $this->get_option('show_on_register')) || ($this->is_profile() && $this->get_option('show_on_profile')) || (class_exists('Theme_My_Login')) || ($this->is_user_edit() && $this->get_option('show_on_profile'))) {
-				return TRUE;
+				$do_scripts = TRUE;
 			} else {
-				return FALSE;
+				$do_scripts = FALSE;
 			}
+			// allow add-on plugins to filter when scripts get enqueued
+			return apply_filters('subscribr_do_scripts', $do_scripts);
 		}
 
 		/**
@@ -282,6 +296,18 @@ if(!class_exists("Subscribr")) :
 		}
 
 		/**
+		 * Adds additional fields to profile if global email option is enabled
+		 *
+		 */
+		public function email_profile_fields($user) {
+			if($this->get_option('enable_mail_notifications') && $this->get_option('enable_html_mail')) {
+				$notifications_label = $this->get_option('notifications_label');
+				$subscribr_send_html = get_user_meta($user->ID, 'subscribr-send-html', TRUE);
+				include_once('views/email-profile-fields.php');
+			}
+		}
+
+		/**
 		 * Displays the custom user fields on the registration and profile screens.
 		 *
 		 * @param $user
@@ -301,7 +327,27 @@ if(!class_exists("Subscribr")) :
 			$subscribr_unsubscribe = get_user_meta($user->ID, 'subscribr-unsubscribe', TRUE);
 			$notifications_label = $this->get_option('notifications_label');
 
+			do_action('subscribr_pre_profile');
+
 			include_once('views/profile-fields.php');
+		}
+
+		/**
+		 * @param $user_id
+		 *
+		 * @param $post_array
+		 *
+		 * @return bool
+		 */
+		public function email_update_user_meta($user_id, $post_array) {
+			if(array_key_exists('subscribr-send-html', $post_array) && $post_array['subscribr-send-html'] == 1) {
+				// the user wants HTML email
+				$enable_html_mail = 1;
+			} else {
+				$enable_html_mail = 0;
+			}
+
+			update_user_meta($user_id, 'subscribr-send-html', $enable_html_mail);
 		}
 
 		/**
@@ -331,6 +377,7 @@ if(!class_exists("Subscribr")) :
 				// no terms were selected
 				$subscribr_terms = FALSE;
 			}
+			update_user_meta($user_id, 'subscribr-terms', $subscribr_terms);
 
 			if(array_key_exists('subscribr-pause', $_POST) && $_POST['subscribr-pause'] == 1) {
 				// the user is pausing
@@ -338,6 +385,7 @@ if(!class_exists("Subscribr")) :
 			} else {
 				$subscribr_pause = 0;
 			}
+			update_user_meta($user_id, 'subscribr-pause', $subscribr_pause);
 
 			if(array_key_exists('subscribr-unsubscribe', $_POST) && $_POST['subscribr-unsubscribe'] == 1) {
 				// the user is unsubscribing
@@ -347,10 +395,10 @@ if(!class_exists("Subscribr")) :
 			} else {
 				$subscribr_unsubscribe = 0;
 			}
-
-			update_user_meta($user_id, 'subscribr-terms', $subscribr_terms);
-			update_user_meta($user_id, 'subscribr-pause', $subscribr_pause);
 			update_user_meta($user_id, 'subscribr-unsubscribe', $subscribr_unsubscribe);
+
+			// hook to add additional user options in add-ons
+			do_action('subscribr_update_user_meta', $user_id, $_POST);
 		}
 
 		/**
@@ -466,7 +514,7 @@ if(!class_exists("Subscribr")) :
 		 */
 		public function notification_send($post_id, $user_id) {
 
-			// 1. grab the appropriate message template
+			// grab the appropriate message template
 			$template_files = $this->locate_theme_templates();
 
 			// test for user defined PHP email templates in the 'subscribr' folder in the current theme (or child theme)
@@ -478,7 +526,7 @@ if(!class_exists("Subscribr")) :
 				//@todo
 			}
 
-			// 2. get users details and send the message
+			// get users details and send the message
 			$user = get_user_by('id', $user_id);
 			$to_name = apply_filters('subsribr_to_name', $user->data->display_name);
 			$to_email = apply_filters('subscribr_to_email', $user->data->user_email);
@@ -493,11 +541,20 @@ if(!class_exists("Subscribr")) :
 			$mail_subject = apply_filters('subscribr_mail_subject', $mail_subject);
 
 			$headers[] = 'From: '.$from;
-			//$headers[] = 'Content-type: text/html'; @todo
 
-			$message = $this->get_option('email_body');
+			// check if user wants HTML messages, if HTML mail has been enabled by the admin
+			if($this->get_option('enable_html_mail') && get_user_meta($user_id, 'subscribr-send-html', TRUE)) {
+				$headers[] = 'MIME-Version: 1.0';
+				//$headers[] = 'Content-type: text/html; charset=UTF-8';
+				$headers[] = 'Content-type: '.get_bloginfo('html_type').'; charset='.get_bloginfo('charset');
+				$message = $this->get_option('enable_html_mail');
+				$message = stripslashes($message['mail_body_html']);
+			} else {
+				$message = $this->get_option('mail_body');
+			}
+
 			$message = $this->merge_user_vars($message, $post_id, $user_id);
-			$message = apply_filters('subsribr_email_body', $message);
+			$message = apply_filters('subsribr_mail_body', $message);
 
 			wp_mail($to, $mail_subject, $message, $headers);
 		}
@@ -614,13 +671,14 @@ if(!class_exists("Subscribr")) :
 		public function merge_user_vars($input_str, $post_id = 0, $user_id = '', $replacements = array()) {
 			$defaults = array(
 				'%post_title%'          => get_the_title($post_id),
+				'%post_type%'           => get_post_type($post_id),
 				'%post_date%'           => date(get_option('date_format'), strtotime(get_post($post_id)->post_date)),
 				'%post_excerpt%'        => wp_trim_words(get_post($post_id)->post_content, $num_words = 55, $more = NULL),
 				'%permalink%'           => get_permalink($post_id),
 				'%site_name%'           => get_bloginfo('name'),
 				'%site_url%'            => get_home_url(),
-				'%notification_label%'  => self::get_option('notification_label'),
-				'%notifications_label%' => self::get_option('notifications_label'),
+				'%notification_label%'  => $this->get_option('notification_label'),
+				'%notifications_label%' => $this->get_option('notifications_label'),
 				'%profile_url%'         => admin_url('profile.php'),
 				'%user_ip%'             => $_SERVER['REMOTE_ADDR']
 			);

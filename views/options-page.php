@@ -88,19 +88,44 @@ $subscribr_options->addText(
 	array(
 		 'name' => __('Email subject', 'subscribr'),
 		 'std'  => __('A notification from %sitename%', 'subscribr'),
-		 'desc' => __('Available variables: %post_title%, %post_date%, %post_excerpt%, %permalink%,%site_name%, %site_url%, %user_ip%, %notification_label%, %notifications_label%, %profile_link%', 'subscribr')
+		 'desc' => __('Available variables: %post_title%, %post_type%, %post_date%, %post_excerpt%, %permalink%,%site_name%, %site_url%, %user_ip%, %notification_label%, %notifications_label%, %profile_link%', 'subscribr')
 	)
 );
 
 $subscribr_options->addCode(
-	'email_body',
+	'mail_body',
 	array(
 		 'type'   => 'code',
 		 'std'    => '',
-		 'desc'   => __('This email template will be used for email notifications when new posts are published', 'subscribr'),
-		 'name'   => 'Email Body',
+		 'desc'   => __('This email template will be used for plain text email notifications when new posts are published', 'subscribr'),
+		 'name'   => __('Email Body (plain text)', 'subscribr'),
 		 'syntax' => 'html',
 
+	)
+);
+
+// import the default template $html_mail_body
+include(SUBSCRIBR_DIR_PATH.'/views/default-html-email-template.php');
+$this->options['enable_html_mail']['mail_body_html'] = apply_filters('subscribr_default_mail_body_html', $html_mail_body);
+
+$subscribr_html_mail[] = $subscribr_options->addCode(
+	'mail_body_html',
+	array(
+		 'std'    => $html_mail_body,
+		 'desc'   => __('This email template will be used for HTML email notifications when new posts are published', 'subscribr'),
+		 'name'   => __('Email Body (HTML)', 'subscribr'),
+		 'syntax' => 'html',
+	),
+	TRUE
+);
+
+$subscribr_options->addCondition(
+	'enable_html_mail',
+	array(
+		 'name' => __('Enable HTML email', 'subscribr'),
+		 'std'  => FALSE,
+		 'fields' => $subscribr_html_mail,
+		 //'desc' => __('Enable or disable HTML email messages.', 'subscribr'),
 	)
 );
 

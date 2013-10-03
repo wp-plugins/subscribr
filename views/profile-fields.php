@@ -12,7 +12,7 @@
  *
  */
 
-echo apply_filters('subscribr_profile_title', sprintf(__('<h3 id="%2$s-options" class="%2$s">Get %1$s via email</h3>', 'subscribr'), $notifications_label, SUBSCRIBR_PLUGIN_SLUG));
+echo apply_filters('subscribr_profile_title', sprintf(__('<h3 id="%2$s-options" class="%2$s">Get %1$s via email</h3>', 'subscribr'), $notifications_label, SUBSCRIBR_PLUGIN_SLUG), $notifications_label, SUBSCRIBR_PLUGIN_SLUG);
 echo apply_filters('subscribr_profile_table_open', '<table class="form-table '.SUBSCRIBR_PLUGIN_SLUG.'">');
 wp_nonce_field('subscribr_inner_custom_box', 'subscribr_inner_custom_box_nonce');
 ?>
@@ -39,6 +39,7 @@ wp_nonce_field('subscribr_inner_custom_box', 'subscribr_inner_custom_box_nonce')
 			<p class="description"><?php echo apply_filters('subscribr_profile_subscribed_terms_description', sprintf(__('Choose from the terms above to enable email %s when new posts are published.', 'subscribr'), $notifications_label)); ?></p>
 		</td>
 	</tr>
+	<?php do_action('subscribr_profile_fields', $user); // hook to add additional fields from add-on plugins ?>
 	<tr class="hidden-on-signup">
 		<th scope="row"><label><?php echo sprintf(__('Pause %s', 'subscribr'), $notifications_label); ?></label></th>
 		<td>
