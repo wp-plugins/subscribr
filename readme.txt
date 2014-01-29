@@ -3,8 +3,8 @@ Contributors: mindshare
 Donate link: http://mind.sh/are/donate/
 Tags: email, notifications, subscribe, subscriptions, notify, alerts
 Requires at least: 3.5
-Tested up to: 3.6.1
-Stable tag: 0.1.2
+Tested up to: 3.8.1
+Stable tag: 0.1.3
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 
@@ -12,11 +12,14 @@ Allows WordPress users to subscribe to notifications for new posts, pages, and c
 
 == Description ==
 
-Allows WordPress users to subscribe to email notifications for new posts, pages, and custom types, filterable by taxonomies. The plugin supports tons of actions and filters too! Documentation will be coming soon.
+Allows WordPress users to subscribe to email notifications for new posts, pages, and custom types, filterable by taxonomies. The plugin supports tons of actions and filters too! More documentation will be coming soon.
 
 = Features =
 
 * send mail as plain text or HTML (by user preference)
+* integrated email template editor
+* option to use PHP template instead of integrated template editor
+* import and export all plugin settings
 
 = Upcoming Features =
 
@@ -63,6 +66,13 @@ Please ask it on the support forum!
 1. The user profile options screenshot-2.png
 
 == Changelog ==
+
+= 0.1.3 =
+* bugfixes, support for WP 3.8+
+* added custom email template options
+* added copy to theme folder option
+* added import/export options tab
+
 
 = 0.1.2 =
 * added html/plain text options

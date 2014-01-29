@@ -26,10 +26,11 @@ $subscribr_options = new subscribr_options_framework(
 // setup Tab labels
 $subscribr_options_labels = array(
 	'Email Options',
-	'Taxonomy Options',
+	'Types &amp; Taxonomies',
 	'General Options',
 	//'Mail Scheduling',
-	//'Third Party Integration'
+	//'Installed Modules',
+	'Import &amp; Export',
 );
 // filter allows plugins to add new tabs
 $subscribr_options_labels = array_merge($subscribr_options_labels, apply_filters('subscribr_option_title', array()));
@@ -92,42 +93,61 @@ $subscribr_options->addText(
 	)
 );
 
-$subscribr_options->addCode(
-	'mail_body',
-	array(
-		 'type'   => 'code',
-		 'std'    => '',
-		 'desc'   => __('This email template will be used for plain text email notifications when new posts are published', 'subscribr'),
-		 'name'   => __('Email Body (plain text)', 'subscribr'),
-		 'syntax' => 'html',
+$to = apply_filters('subscribr_template_directory', SUBSCRIBR_TEMPLATE_PATH);
+if(!is_dir($to)) {
 
-	)
-);
+	$subscribr_options->addCode(
+		'mail_body',
+		array(
+			 'type'   => 'code',
+			 'std'    => '',
+			 'desc'   => __('This email template will be used for plain text email notifications when new posts are published', 'subscribr'),
+			 'name'   => __('Email Body (plain text)', 'subscribr'),
+			 'syntax' => 'html',
 
-// import the default template $html_mail_body
-include(SUBSCRIBR_DIR_PATH.'/views/default-html-email-template.php');
-$this->options['enable_html_mail']['mail_body_html'] = apply_filters('subscribr_default_mail_body_html', $html_mail_body);
+		)
+	);
 
-$subscribr_html_mail[] = $subscribr_options->addCode(
-	'mail_body_html',
-	array(
-		 'std'    => $html_mail_body,
-		 'desc'   => __('This email template will be used for HTML email notifications when new posts are published', 'subscribr'),
-		 'name'   => __('Email Body (HTML)', 'subscribr'),
-		 'syntax' => 'html',
-	),
-	TRUE
-);
+	// import the default template $html_mail_body
+	include(SUBSCRIBR_DIR_PATH.'/views/templates/html-email-template.php');
+	$this->options['enable_html_mail']['mail_body_html'] = apply_filters('subscribr_default_mail_body_html', $html_mail_body);
 
-$subscribr_options->addCondition(
-	'enable_html_mail',
-	array(
-		 'name' => __('Enable HTML email', 'subscribr'),
-		 'std'  => FALSE,
-		 'fields' => $subscribr_html_mail,
-		 //'desc' => __('Enable or disable HTML email messages.', 'subscribr'),
-	)
-);
+	$subscribr_html_mail[] = $subscribr_options->addCode(
+		'mail_body_html',
+		array(
+			 'std'    => $html_mail_body,
+			 'desc'   => __('This email template will be used for HTML email notifications when new posts are published', 'subscribr'),
+			 'name'   => __('Email Body (HTML)', 'subscribr'),
+			 'syntax' => 'html',
+		),
+		TRUE
+	);
+
+	$subscribr_options->addCondition(
+		'enable_html_mail',
+		array(
+			 'name'   => __('Enable HTML email', 'subscribr'),
+			 'std'    => FALSE,
+			 'fields' => $subscribr_html_mail,
+			 //'desc' => __('Enable or disable HTML email messages.', 'subscribr'),
+		)
+	);
+}
+
+if(!is_dir($to)) {
+	$subscribr_options->addSubtitle('Custom Email Templates: <span class="error">Disabled</span>');
+	$subscribr_options->addCheckbox(
+		'use_custom_templates',
+		array(
+			 'name' => __('Copy default templates to theme folder', 'subscribr'),
+			 'desc' => __('Turn this to ON and save changes to copy the default email templates to your current theme folder. This option overrides the template(s) defined above.', 'subscribr'),
+			 'std'  => FALSE,
+		)
+	);
+} else {
+	$subscribr_options->addSubtitle('Custom Email Templates: <span class="success">Enabled</span>');
+	$subscribr_options->addParagraph('Custom email templates have been installed to the <code>subscribr</code> folder in your theme. If you want to switch back to using the template editor(s) on this screen, simply delete or rename the <code>subscribr</code> folder in your theme.');
+}
 
 $subscribr_options->CloseTab();
 
@@ -138,6 +158,32 @@ $subscribr_options->CloseTab();
 $subscribr_options->OpenTab($subscribr_tabs_keys[1]);
 $subscribr_options->Title($subscribr_tabs[$subscribr_tabs_keys[1]]);
 
+$subscribr_options->addSubtitle('Type Options');
+$subscribr_options->addCheckbox(
+	'enable_all_types',
+	array(
+		 'name' => __('Enable All Post Types', 'subscribr'),
+		 'std'  => TRUE,
+		 'desc' => __('Turning this ON will enable all post types, overriding the individual settings below.', 'subscribr')
+	)
+);
+
+$subscribr_options->addPostTypes(
+	'enabled_types',
+	array(
+		 'types' => $this->get_default_types(),
+		 'type'     => 'checkbox_list',
+	),
+	array(
+		 'name' => __('Enabled Post Types', 'subscribr'),
+		 'desc' => __('Choose the post types you want to allow users to subscribe to.', 'subscribr')
+	),
+	FALSE
+);
+
+
+
+$subscribr_options->addSubtitle('Taxonomy Options');
 $subscribr_options->addCheckbox(
 	'enable_all_terms',
 	array(
@@ -147,7 +193,6 @@ $subscribr_options->addCheckbox(
 	)
 );
 
-// term choices @todo add select all/none toggle to Mindshare Options Framework
 $subscribr_options->addTaxonomy(
 	'enabled_terms',
 	array(
@@ -156,7 +201,7 @@ $subscribr_options->addTaxonomy(
 	),
 	array(
 		 'name' => __('Enabled Terms', 'subscribr'),
-		 'desc' => __('Choose the terms you want to allow users to subscribe to from their profiles.', 'subscribr')
+		 'desc' => __('Choose the terms you want to allow users to subscribe to.', 'subscribr')
 	),
 	FALSE
 );
@@ -214,21 +259,16 @@ $subscribr_options->addText(
 
 $subscribr_options->CloseTab();
 
+// action to allow plugging in extra options
+do_action('subscribr_option_add', $subscribr_options);
+
 /*
  * tab start
  */
-/*
 $subscribr_options->OpenTab($subscribr_tabs_keys[3]);
 $subscribr_options->Title($subscribr_tabs[$subscribr_tabs_keys[3]]);
-
-$subscribr_options->addParagraph(
-	'Feature not yet implemented.'
-);
-
-$subscribr_options->CloseTab();*/
-
-// action to allow plugging in extra options
-do_action('subscribr_option_add', $subscribr_options);
+$subscribr_options->addImportExport();
+$subscribr_options->CloseTab();
 
 /*
  * Help Tabs
